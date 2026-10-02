@@ -1,0 +1,29 @@
+# Secrets / env
+.env
+.env.*
+!*.example
+!deploy/docker/.env.example
+!deploy/docker/.env.prod.example
+
+# Node
+**/node_modules/
+**/npm-debug.log*
+
+# Angular
+apps/web/dist/
+apps/web/.angular/
+
+# Logs / temp
+*.log
+tmp/
+temp/
+
+# Backups
+backups/*
+!backups/.gitkeep
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
