@@ -1,89 +1,74 @@
 # Farmacias System
 
-Plantilla base para el proyecto de farmacias, adaptada del patrón usado en `swt3ch-solutions`.
+MVP funcional para administración de una cadena de farmacias. Está pensado para el proyecto académico solicitado y para poder ejecutarse sin Kubernetes usando Docker Compose en tres ambientes independientes: **DEV, QA y PROD**.
 
 ## Stack
+- Angular + TypeScript
+- Node.js + Express
+- Oracle XE
+- JWT
+- Docker / Docker Compose
+- Nginx (sirve Angular y actúa como reverse proxy en QA/PROD)
 
-- Frontend: Angular + TypeScript
-- Backend: Node.js + Express
-- Base de datos: Oracle XE
-- Contenedores: Docker + Docker Compose
-- Producción: Nginx del host como reverse proxy + HTTPS
+## Módulos incluidos
+Dashboard; farmacias; medicamentos; inventario con stock mínimo, lote y vencimiento; traslados entre sucursales con movimiento real de existencias al recibir; activos; ingresos/egresos de caja; empleados; planillas; clientes; pedidos; asignación y seguimiento de entregas.
 
 ## Estructura
-
 ```text
-farmacias-system/
-├── apps/
-│   ├── api/                 # Express
-│   └── web/                 # Angular
-├── database/init/           # SQL inicial de Oracle
-├── deploy/
-│   ├── docker/              # Compose dev/prod + variables
-│   └── nginx/               # Reverse proxy del servidor
-├── scripts/                 # deploy / backup
-├── docs/
-├── backups/
-├── Makefile
-└── README.md
+apps/api        API Express y bootstrap del esquema Oracle
+apps/web        SPA Angular
+database/init   documentación SQL
+deploy/docker   Compose y variables DEV/QA/PROD
+deploy/nginx    ejemplo de proxy HTTPS externo
+scripts         despliegue y backup
+docs            guía de producción
 ```
 
-## Desarrollo
-
+## Inicio rápido DEV
 ```bash
 make setup
-nano deploy/docker/.env
-make up
-make ps
+make dev-build
+make dev-ps
 ```
+Abra **http://localhost:4200**.
 
-Servicios:
+Credenciales iniciales DEV:
+- usuario: `admin`
+- contraseña: `Admin123!`
 
-- Angular: http://localhost:4200
-- API: http://localhost:3000/api
-- Health: http://localhost:3000/api/health
-- Oracle: localhost:1521 (solo desarrollo)
+API health: `http://localhost:3000/api/health`
+Oracle DEV: `localhost:1521`, servicio `XEPDB1`.
 
-La aplicación Angular usa `/api` y el proxy de Angular redirige internamente a `http://api:3000`.
+> En el primer arranque Oracle puede tardar algunos minutos. La API espera la base de datos y crea automáticamente el esquema y datos mínimos.
 
-### Comandos frecuentes
-
+## QA
+Edite `deploy/docker/.env.qa` después de `make setup` y cambie todos los valores `CHANGE_ME_*`.
 ```bash
-make logs
-make api-shell
-make web-shell
-make db-shell
-make restart
-make down
+make qa-build
+make qa-ps
 ```
+Por defecto: **http://localhost:8080**. Oracle QA solo se publica en `127.0.0.1:1522` para administración local.
 
 ## Producción
-
+Edite `deploy/docker/.env.prod` y cambie todos los secretos.
 ```bash
-make prod-setup
-nano deploy/docker/.env.prod
-make prod-up
+make config-prod
+make prod-build
 make prod-ps
 ```
+Por defecto publica el sitio en puerto **80**. API y Oracle no publican puertos al host.
 
-En producción:
-
-- Angular container: `127.0.0.1:3110`
-- API container: `127.0.0.1:8180`
-- Oracle: solo red privada Docker
-- Nginx del host: publica 80/443
-
-Consulta `docs/PRODUCTION_DEPLOYMENT.md` para el procedimiento completo.
-
-## Importante sobre Oracle init
-
-Los scripts de `database/init/` se ejecutan cuando se crea por primera vez el volumen de Oracle. Si el volumen ya existe, no se vuelven a aplicar automáticamente.
-
-Para reiniciar completamente el ambiente de desarrollo y recrear la base desde cero:
-
+## Comandos útiles
 ```bash
-docker compose -f deploy/docker/docker-compose.yml --env-file deploy/docker/.env down -v
-make up
+make help
+make dev-logs
+make qa-logs
+make prod-logs
+make backup-prod
 ```
 
-Esto elimina los datos locales del volumen, por lo que debe usarse solo cuando quieras recrear la base de desarrollo.
+## Datos persistentes
+Cada ambiente usa un proyecto y volumen de Oracle distinto. `make dev-reset`/`make qa-reset` borran sus datos y deben usarse solo para reiniciar ambientes no productivos. No hay objetivo `prod-reset` deliberadamente.
+
+## Seguridad antes de exponer PROD
+Cambie todas las claves, use HTTPS, restrinja firewall a 80/443 (o al puerto del proxy), mantenga Docker/OS actualizados y programe backups. Este repositorio es un MVP académico/operativo, no sustituye revisión de seguridad, cumplimiento farmacéutico, auditoría financiera o alta disponibilidad.

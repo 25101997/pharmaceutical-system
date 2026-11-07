@@ -1,32 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
-ENV_FILE="deploy/docker/.env.prod"
-if [ ! -f "$ENV_FILE" ]; then
-  echo "No existe $ENV_FILE. Ejecuta: make prod-setup"
-  exit 1
-fi
-
-set -a
-# shellcheck disable=SC1090
-source "$ENV_FILE"
-set +a
-
+ENV_FILE="${ENV_FILE:-deploy/docker/.env.prod}"
+COMPOSE_FILE="${COMPOSE_FILE:-deploy/docker/docker-compose.prod.yml}"
+if [[ ! -f "$ENV_FILE" ]]; then echo "No existe $ENV_FILE"; exit 1; fi
+set -a; source "$ENV_FILE"; set +a
+STAMP=$(date +%Y%m%d_%H%M%S)
+DUMP="farmacias_${STAMP}.dmp"; LOG="farmacias_${STAMP}.log"
 mkdir -p backups
-STAMP=$(date +"%Y%m%d_%H%M%S")
-DUMP="farmacias_${STAMP}.dmp"
-LOG="farmacias_${STAMP}.log"
-
-# Data Pump escribe primero dentro del contenedor.
-docker exec farmacias-prod-database \
-  expdp "${DB_USER}/${DB_PASSWORD}@XEPDB1" \
-  DIRECTORY=DATA_PUMP_DIR \
-  DUMPFILE="$DUMP" \
-  LOGFILE="$LOG" \
-  SCHEMAS="$DB_USER"
-
-# En Oracle XE, DATA_PUMP_DIR normalmente apunta a /opt/oracle/admin/XE/dpdump.
-docker cp "farmacias-prod-database:/opt/oracle/admin/XE/dpdump/$DUMP" "backups/$DUMP"
-docker cp "farmacias-prod-database:/opt/oracle/admin/XE/dpdump/$LOG" "backups/$LOG"
-
+DC=(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE")
+"${DC[@]}" exec -T oracle bash -lc "expdp '${DB_USER}/${DB_PASSWORD}@XEPDB1' schemas=${DB_USER} directory=DATA_PUMP_DIR dumpfile=${DUMP} logfile=${LOG}"
+CID=$("${DC[@]}" ps -q oracle)
+REMOTE=$(docker exec "$CID" sh -lc "find /opt/oracle -type f -name '${DUMP}' 2>/dev/null | head -1")
+[[ -n "$REMOTE" ]] || { echo "No se encontró el dump dentro del contenedor"; exit 1; }
+docker cp "$CID:$REMOTE" "backups/$DUMP"
 echo "Backup creado: backups/$DUMP"

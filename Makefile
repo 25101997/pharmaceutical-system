@@ -1,98 +1,100 @@
-ENV_LOCAL=deploy/docker/.env
-ENV_PROD=deploy/docker/.env.prod
-COMPOSE_LOCAL=docker compose -f deploy/docker/docker-compose.yml --env-file $(ENV_LOCAL)
-COMPOSE_PROD=docker compose -f deploy/docker/docker-compose.prod.yml --env-file $(ENV_PROD)
+SHELL := /bin/bash
+D := deploy/docker
+DEV := docker compose --env-file $(D)/.env.dev -f $(D)/docker-compose.dev.yml
+QA := docker compose --env-file $(D)/.env.qa -f $(D)/docker-compose.qa.yml
+PROD := docker compose --env-file $(D)/.env.prod -f $(D)/docker-compose.prod.yml
 
-.PHONY: help setup up build logs down ps restart api-shell web-shell db-shell \
-        prod-setup prod-build prod-up prod-start prod-logs prod-down prod-ps prod-restart \
-        backup-prod clean
+.PHONY: help setup dev dev-build dev-down dev-logs dev-ps dev-reset qa qa-build qa-down qa-logs qa-ps qa-reset prod prod-build prod-down prod-logs prod-ps backup-prod backup-qa config-dev config-qa config-prod
 
 help:
 	@echo ""
-	@echo "Farmacias System"
-	@echo ""
-	@echo "Desarrollo:"
-	@echo "  make setup        Crear deploy/docker/.env desde el ejemplo"
-	@echo "  make up           Levantar desarrollo (build incluido)"
-	@echo "  make build        Reconstruir imagenes de desarrollo"
-	@echo "  make logs         Ver logs de desarrollo"
-	@echo "  make ps           Ver servicios de desarrollo"
-	@echo "  make restart      Reiniciar servicios de desarrollo"
-	@echo "  make down         Detener desarrollo"
-	@echo "  make api-shell    Abrir shell en API"
-	@echo "  make web-shell    Abrir shell en Angular"
-	@echo "  make db-shell     Abrir shell en Oracle"
-	@echo ""
-	@echo "Produccion:"
-	@echo "  make prod-setup   Crear deploy/docker/.env.prod desde el ejemplo"
-	@echo "  make prod-build   Construir imagenes de produccion"
-	@echo "  make prod-up      Construir y levantar produccion"
-	@echo "  make prod-start   Levantar sin reconstruir"
-	@echo "  make prod-logs    Ver logs de produccion"
-	@echo "  make prod-ps      Ver servicios de produccion"
-	@echo "  make prod-restart Reiniciar produccion"
-	@echo "  make prod-down    Detener produccion"
-	@echo "  make backup-prod  Exportar esquema Oracle con Data Pump"
+	@echo "Farmacias System - DEV / QA / PROD"
+	@echo "------------------------------------------------"
+	@echo "make setup       Crea archivos .env faltantes"
+	@echo "make dev         Levanta DEV"
+	@echo "make dev-build   Reconstruye y levanta DEV"
+	@echo "make dev-logs    Logs DEV"
+	@echo "make dev-down    Detiene DEV"
+	@echo "make dev-reset   Elimina DEV + volumen Oracle"
+	@echo "make qa          Levanta QA"
+	@echo "make qa-build    Reconstruye y levanta QA"
+	@echo "make qa-logs     Logs QA"
+	@echo "make qa-down     Detiene QA"
+	@echo "make prod        Levanta PROD"
+	@echo "make prod-build  Reconstruye y levanta PROD"
+	@echo "make prod-logs   Logs PROD"
+	@echo "make prod-down   Detiene PROD"
+	@echo "make backup-prod Exporta esquema Oracle PROD"
 	@echo ""
 
 setup:
-	@test -f $(ENV_LOCAL) || cp deploy/docker/.env.example $(ENV_LOCAL)
-	@echo "Entorno local preparado: $(ENV_LOCAL)"
+	@test -f $(D)/.env.dev || cp $(D)/.env.dev.example $(D)/.env.dev
+	@test -f $(D)/.env.qa || cp $(D)/.env.qa.example $(D)/.env.qa
+	@test -f $(D)/.env.prod || cp $(D)/.env.prod.example $(D)/.env.prod
+	@echo "Archivos de ambiente listos en $(D)/.env.*"
 
-up: setup
-	$(COMPOSE_LOCAL) up -d --build
+dev: setup
+	$(DEV) up -d
 
-build: setup
-	$(COMPOSE_LOCAL) build
+dev-build: setup
+	$(DEV) up -d --build
 
-logs:
-	$(COMPOSE_LOCAL) logs -f
+dev-down:
+	$(DEV) down
 
-ps:
-	$(COMPOSE_LOCAL) ps
+dev-logs:
+	$(DEV) logs -f
 
-restart:
-	$(COMPOSE_LOCAL) restart
+dev-ps:
+	$(DEV) ps
 
-down:
-	$(COMPOSE_LOCAL) down
+dev-reset:
+	$(DEV) down -v --remove-orphans
 
-api-shell:
-	$(COMPOSE_LOCAL) exec api sh
+qa: setup
+	$(QA) up -d
 
-web-shell:
-	$(COMPOSE_LOCAL) exec web sh
+qa-build: setup
+	$(QA) up -d --build
 
-db-shell:
-	$(COMPOSE_LOCAL) exec database bash
+qa-down:
+	$(QA) down
 
-prod-setup:
-	@test -f $(ENV_PROD) || cp deploy/docker/.env.prod.example $(ENV_PROD)
-	@echo "Edita $(ENV_PROD) antes de desplegar."
+qa-logs:
+	$(QA) logs -f
 
-prod-build:
-	$(COMPOSE_PROD) build api web
+qa-ps:
+	$(QA) ps
 
-prod-up:
-	$(COMPOSE_PROD) up -d --build
+qa-reset:
+	$(QA) down -v --remove-orphans
 
-prod-start:
-	$(COMPOSE_PROD) up -d --no-build
+prod: setup
+	$(PROD) up -d
 
-prod-logs:
-	$(COMPOSE_PROD) logs -f
-
-prod-ps:
-	$(COMPOSE_PROD) ps
-
-prod-restart:
-	$(COMPOSE_PROD) restart
+prod-build: setup
+	$(PROD) up -d --build
 
 prod-down:
-	$(COMPOSE_PROD) down
+	$(PROD) down
+
+prod-logs:
+	$(PROD) logs -f
+
+prod-ps:
+	$(PROD) ps
+
+config-dev: setup
+	$(DEV) config
+
+config-qa: setup
+	$(QA) config
+
+config-prod: setup
+	$(PROD) config
 
 backup-prod:
-	bash scripts/backup-db.sh
+	ENV_FILE=$(D)/.env.prod COMPOSE_FILE=$(D)/docker-compose.prod.yml ./scripts/backup-db.sh
 
-clean:
-	docker image prune -f
+backup-qa:
+	ENV_FILE=$(D)/.env.qa COMPOSE_FILE=$(D)/docker-compose.qa.yml ./scripts/backup-db.sh

@@ -1,31 +1,31 @@
 const oracledb = require('oracledb');
 
+oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
+oracledb.fetchAsString = [oracledb.CLOB];
+
 let pool;
 
 async function initializeDatabase() {
+  if (pool) return pool;
   pool = await oracledb.createPool({
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     connectString: process.env.DB_CONNECT_STRING,
-    poolMin: 1,
-    poolMax: 10,
+    poolMin: Number(process.env.DB_POOL_MIN || 1),
+    poolMax: Number(process.env.DB_POOL_MAX || 10),
     poolIncrement: 1
   });
-
-  console.log('Oracle connection pool initialized');
+  return pool;
 }
 
 async function getConnection() {
-  if (!pool) {
-    throw new Error('Database pool is not initialized');
-  }
-  return pool.getConnection();
+  return oracledb.getConnection();
 }
 
 async function closeDatabase() {
   if (pool) {
     await pool.close(10);
-    pool = undefined;
+    pool = null;
   }
 }
 

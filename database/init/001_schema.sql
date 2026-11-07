@@ -1,1 +1,10 @@
-
+-- ESQUEMA DE REFERENCIA
+-- La aplicación crea y actualiza automáticamente las tablas al iniciar mediante
+-- apps/api/src/services/schema.service.js. Este archivo documenta las entidades.
+--
+-- ROLES, USUARIOS, FARMACIAS, MEDICAMENTOS, INVENTARIO,
+-- TRASLADOS, TRASLADO_DETALLE, ACTIVOS, MOVIMIENTOS_CAJA,
+-- EMPLEADOS, PLANILLAS, CLIENTES, PEDIDOS, PEDIDO_DETALLE, ENTREGAS.
+--
+-- Esto permite que DEV/QA/PROD usen contraseñas distintas sin incluir credenciales
+-- en scripts SQL de inicialización.

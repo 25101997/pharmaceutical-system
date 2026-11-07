@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
-if [ ! -f deploy/docker/.env.prod ]; then
-  echo "Falta deploy/docker/.env.prod. Ejecuta: make prod-setup"
-  exit 1
-fi
-
-make prod-up
-make prod-ps
+ENVIRONMENT="${1:-prod}"
+case "$ENVIRONMENT" in
+  dev) make dev-build ;;
+  qa) make qa-build ;;
+  prod) make prod-build ;;
+  *) echo "Uso: $0 dev|qa|prod"; exit 1 ;;
+esac

@@ -1,0 +1,46 @@
+services:
+  oracle:
+    image: gvenzl/oracle-xe:21-slim
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD}
+      APP_USER: ${DB_USER}
+      APP_USER_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - oracle_qa_data:/opt/oracle/oradata
+    ports:
+      - "127.0.0.1:1522:1521"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 15s
+      timeout: 10s
+      retries: 30
+      start_period: 60s
+    restart: unless-stopped
+    networks: [farmacias]
+
+  api:
+    build:
+      context: ../../apps/api
+      dockerfile: Dockerfile.prod
+    env_file: .env.qa
+    depends_on:
+      oracle:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [farmacias]
+
+  web:
+    build:
+      context: ../../apps/web
+      dockerfile: Dockerfile.prod
+    ports:
+      - "${QA_WEB_PORT:-8080}:80"
+    depends_on: [api]
+    restart: unless-stopped
+    networks: [farmacias]
+
+networks:
+  farmacias:
+    driver: bridge
+volumes:
+  oracle_qa_data:

@@ -1,37 +1,15 @@
-const express = require('express');
-const cors = require('cors');
-
-const app = express();
-
-const allowedOrigins = (process.env.CORS_ALLOWED || '')
-  .split(',')
-  .map((value) => value.trim())
-  .filter(Boolean);
-
-app.use(cors({
-  origin(origin, callback) {
-    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    return callback(new Error('Origin not allowed by CORS'));
-  }
-}));
-
-app.use(express.json({ limit: '1mb' }));
-
-app.get('/api', (req, res) => {
-  res.json({ name: 'Farmacias API', version: '1.0.0' });
-});
-
-app.use('/api/health', require('./routes/health.routes'));
-
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
-});
-
-app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(500).json({ error: 'Internal server error' });
-});
-
-module.exports = app;
+const express=require('express');const cors=require('cors');const helmet=require('helmet');const morgan=require('morgan');
+const {requireAuth}=require('./middleware/auth.middleware');const {notFound,errorHandler}=require('./middleware/error.middleware');
+const app=express();app.use(helmet());app.use(express.json({limit:'1mb'}));app.use(morgan('combined'));
+const allowed=(process.env.CORS_ALLOWED||'http://localhost:4200').split(',').map(x=>x.trim());app.use(cors({origin:(origin,cb)=>!origin||allowed.includes(origin)?cb(null,true):cb(new Error('Origen CORS no permitido'))}));
+app.get('/api/health',(req,res)=>res.json({status:'healthy',service:'farmacias-api',environment:process.env.NODE_ENV||'development'}));
+app.use('/api/auth',require('./routes/auth.routes'));
+app.use('/api/dashboard',requireAuth,require('./routes/dashboard.routes'));
+app.use('/api/crud',requireAuth,require('./routes/crud.routes'));
+app.use('/api/inventario',requireAuth,require('./routes/inventory.routes'));
+app.use('/api/caja',requireAuth,require('./routes/cash.routes'));
+app.use('/api/planillas',requireAuth,require('./routes/payroll.routes'));
+app.use('/api/traslados',requireAuth,require('./routes/transfers.routes'));
+app.use('/api/pedidos',requireAuth,require('./routes/orders.routes'));
+app.use('/api/entregas',requireAuth,require('./routes/deliveries.routes'));
+app.use(notFound);app.use(errorHandler);module.exports=app;

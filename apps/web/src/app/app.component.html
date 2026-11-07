@@ -1,8 +1,94 @@
-<main class="shell">
-  <section class="card">
-    <p class="eyebrow">Sistema Integral de Farmacias</p>
-    <h1>Base de desarrollo lista</h1>
-    <p>Angular + Node.js/Express + Oracle XE + Docker Compose.</p>
-    <div class="status">{{ apiStatus() }}</div>
-  </section>
-</main>
+<div class="login-shell" *ngIf="!logged">
+  <div class="login-card">
+    <div class="brand-mark">F+</div>
+    <h1>Farmacias</h1>
+    <p>Gestión integral de sucursales, inventario, caja y entregas.</p>
+    <form (ngSubmit)="doLogin()">
+      <label>Usuario</label><input [(ngModel)]="login.usuario" name="usuario" required>
+      <label>Contraseña</label><input [(ngModel)]="login.password" name="password" type="password" required>
+      <button type="submit">Ingresar</button>
+    </form>
+    <div class="alert error" *ngIf="error">{{error}}</div>
+    <small>Usuario inicial: <b>admin</b> / <b>Admin123!</b> (cámbialo en variables de entorno para QA/PROD).</small>
+  </div>
+</div>
+
+<div class="app-shell" *ngIf="logged">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark small">F+</div><div><strong>Farmacias</strong><span>Gestión integral</span></div></div>
+    <nav><button *ngFor="let m of menu" [class.active]="section===m[0]" (click)="select(m[0])">{{m[1]}}</button></nav>
+    <div class="userbox"><div>{{user?.nombre}}</div><span>{{user?.rol}}</span><button (click)="logout()">Cerrar sesión</button></div>
+  </aside>
+
+  <main class="content">
+    <header><div><h1>{{section | titlecase}}</h1><p>Ambiente: <b>{{dashboard?.ENVIRONMENT || 'aplicación'}}</b></p></div><button class="secondary" (click)="refresh()">Actualizar</button></header>
+    <div class="alert success" *ngIf="notice">{{notice}}</div><div class="alert error" *ngIf="error">{{error}}</div>
+
+    <section *ngIf="section==='dashboard'">
+      <div class="cards">
+        <article><span>Farmacias activas</span><strong>{{dashboard.FARMACIAS || 0}}</strong></article>
+        <article><span>Medicamentos</span><strong>{{dashboard.MEDICAMENTOS || 0}}</strong></article>
+        <article><span>Unidades en inventario</span><strong>{{dashboard.UNIDADES || 0}}</strong></article>
+        <article><span>Alertas stock bajo</span><strong>{{dashboard.STOCK_BAJO || 0}}</strong></article>
+        <article><span>Flujo de caja hoy</span><strong>{{money(dashboard.CAJA_HOY)}}</strong></article>
+        <article><span>Pedidos abiertos</span><strong>{{dashboard.PEDIDOS_ABIERTOS || 0}}</strong></article>
+      </div>
+      <div class="panel"><h2>Inicio rápido</h2><p>Usa el menú para registrar sucursales, medicamentos, existencias, traslados, activos, movimientos de caja, personal, planillas, clientes, pedidos y entregas.</p></div>
+    </section>
+
+    <section *ngIf="section==='farmacias'">
+      <div class="panel form-panel"><h2>Nueva farmacia</h2><div class="grid-form"><input placeholder="Código" [(ngModel)]="form.CODIGO"><input placeholder="Nombre" [(ngModel)]="form.NOMBRE"><input placeholder="Dirección" [(ngModel)]="form.DIRECCION"><input placeholder="Departamento" [(ngModel)]="form.DEPARTAMENTO"><input placeholder="Teléfono" [(ngModel)]="form.TELEFONO"><button (click)="saveCrud('farmacias')">Guardar</button></div></div>
+      <div class="panel table-wrap"><table><thead><tr><th>ID</th><th>Código</th><th>Nombre</th><th>Departamento</th><th>Teléfono</th><th></th></tr></thead><tbody><tr *ngFor="let r of rows"><td>{{r.ID}}</td><td>{{r.CODIGO}}</td><td>{{r.NOMBRE}}</td><td>{{r.DEPARTAMENTO}}</td><td>{{r.TELEFONO}}</td><td><button class="danger ghost" (click)="remove('farmacias',r.ID)">Desactivar</button></td></tr></tbody></table></div>
+    </section>
+
+    <section *ngIf="section==='medicamentos'">
+      <div class="panel form-panel"><h2>Nuevo medicamento</h2><div class="grid-form"><input placeholder="Código" [(ngModel)]="form.CODIGO"><input placeholder="Nombre" [(ngModel)]="form.NOMBRE"><input placeholder="Presentación" [(ngModel)]="form.PRESENTACION"><input placeholder="Laboratorio" [(ngModel)]="form.LABORATORIO"><input type="number" placeholder="Precio Q" [(ngModel)]="form.PRECIO"><select [(ngModel)]="form.REQUIERE_RECETA"><option [ngValue]="0">Sin receta</option><option [ngValue]="1">Requiere receta</option></select><button (click)="saveCrud('medicamentos')">Guardar</button></div></div>
+      <div class="panel table-wrap"><table><thead><tr><th>Código</th><th>Nombre</th><th>Presentación</th><th>Laboratorio</th><th>Precio</th><th>Receta</th><th></th></tr></thead><tbody><tr *ngFor="let r of rows"><td>{{r.CODIGO}}</td><td>{{r.NOMBRE}}</td><td>{{r.PRESENTACION}}</td><td>{{r.LABORATORIO}}</td><td>{{money(r.PRECIO)}}</td><td>{{r.REQUIERE_RECETA ? 'Sí':'No'}}</td><td><button class="danger ghost" (click)="remove('medicamentos',r.ID)">Desactivar</button></td></tr></tbody></table></div>
+    </section>
+
+    <section *ngIf="section==='inventario'">
+      <div class="panel form-panel"><h2>Ajuste de inventario</h2><p>Usa cantidad positiva para entrada y negativa para salida.</p><div class="grid-form"><select [(ngModel)]="form.farmaciaId"><option [ngValue]="undefined">Farmacia</option><option *ngFor="let f of pharmacies" [ngValue]="f.ID">{{f.NOMBRE}}</option></select><select [(ngModel)]="form.medicamentoId"><option [ngValue]="undefined">Medicamento</option><option *ngFor="let m of medicines" [ngValue]="m.ID">{{m.CODIGO}} - {{m.NOMBRE}}</option></select><input type="number" placeholder="Cantidad" [(ngModel)]="form.cantidad"><input type="number" placeholder="Stock mínimo" [(ngModel)]="form.stockMinimo"><input placeholder="Lote" [(ngModel)]="form.lote"><input type="date" [(ngModel)]="form.fechaVencimiento"><button (click)="adjustInventory()">Aplicar ajuste</button></div></div>
+      <div class="panel table-wrap"><table><thead><tr><th>Farmacia</th><th>Código</th><th>Medicamento</th><th>Existencia</th><th>Mínimo</th><th>Lote</th><th>Vence</th></tr></thead><tbody><tr *ngFor="let r of rows" [class.low]="r.EXISTENCIA<=r.STOCK_MINIMO"><td>{{r.FARMACIA}}</td><td>{{r.CODIGO}}</td><td>{{r.MEDICAMENTO}}</td><td>{{r.EXISTENCIA}}</td><td>{{r.STOCK_MINIMO}}</td><td>{{r.LOTE}}</td><td>{{r.FECHA_VENCIMIENTO | date:'yyyy-MM-dd'}}</td></tr></tbody></table></div>
+    </section>
+
+    <section *ngIf="section==='traslados'">
+      <div class="panel form-panel"><h2>Nuevo traslado</h2><div class="grid-form"><select [(ngModel)]="form.origenId"><option [ngValue]="undefined">Origen</option><option *ngFor="let f of pharmacies" [ngValue]="f.ID">{{f.NOMBRE}}</option></select><select [(ngModel)]="form.destinoId"><option [ngValue]="undefined">Destino</option><option *ngFor="let f of pharmacies" [ngValue]="f.ID">{{f.NOMBRE}}</option></select><input placeholder="Observaciones" [(ngModel)]="form.observaciones"></div><div class="line-items" *ngFor="let it of transferItems; let i=index"><select [(ngModel)]="it.medicamentoId"><option [ngValue]="null">Medicamento</option><option *ngFor="let m of medicines" [ngValue]="m.ID">{{m.NOMBRE}}</option></select><input type="number" min="1" [(ngModel)]="it.cantidad"></div><div class="actions"><button class="secondary" (click)="addTransferItem()">+ Producto</button><button (click)="createTransfer()">Crear traslado</button></div></div>
+      <div class="panel table-wrap"><table><thead><tr><th>ID</th><th>Origen</th><th>Destino</th><th>Estado</th><th>Items</th><th>Creado</th><th></th></tr></thead><tbody><tr *ngFor="let r of rows"><td>#{{r.ID}}</td><td>{{r.ORIGEN}}</td><td>{{r.DESTINO}}</td><td><span class="pill">{{r.ESTADO}}</span></td><td>{{r.ITEMS}}</td><td>{{r.CREATED_AT | date:'short'}}</td><td><button *ngIf="r.ESTADO!=='RECIBIDO'" (click)="receiveTransfer(r.ID)">Recibir</button></td></tr></tbody></table></div>
+    </section>
+
+    <section *ngIf="section==='activos'">
+      <div class="panel form-panel"><h2>Registrar activo</h2><div class="grid-form"><select [(ngModel)]="form.FARMACIA_ID"><option [ngValue]="undefined">Farmacia</option><option *ngFor="let f of pharmacies" [ngValue]="f.ID">{{f.NOMBRE}}</option></select><input placeholder="Código" [(ngModel)]="form.CODIGO"><input placeholder="Nombre" [(ngModel)]="form.NOMBRE"><input placeholder="Categoría" [(ngModel)]="form.CATEGORIA"><input type="number" placeholder="Valor" [(ngModel)]="form.VALOR"><select [(ngModel)]="form.ESTADO"><option>ACTIVO</option><option>MANTENIMIENTO</option><option>BAJA</option></select><button (click)="saveCrud('activos')">Guardar</button></div></div>
+      <div class="panel table-wrap"><table><thead><tr><th>Código</th><th>Nombre</th><th>Categoría</th><th>Valor</th><th>Estado</th></tr></thead><tbody><tr *ngFor="let r of rows"><td>{{r.CODIGO}}</td><td>{{r.NOMBRE}}</td><td>{{r.CATEGORIA}}</td><td>{{money(r.VALOR)}}</td><td>{{r.ESTADO}}</td></tr></tbody></table></div>
+    </section>
+
+    <section *ngIf="section==='caja'">
+      <div class="panel form-panel"><h2>Movimiento de caja</h2><div class="grid-form"><select [(ngModel)]="form.farmaciaId"><option [ngValue]="undefined">Farmacia</option><option *ngFor="let f of pharmacies" [ngValue]="f.ID">{{f.NOMBRE}}</option></select><select [(ngModel)]="form.tipo"><option>INGRESO</option><option>EGRESO</option></select><input placeholder="Concepto" [(ngModel)]="form.concepto"><input type="number" placeholder="Monto" [(ngModel)]="form.monto"><input placeholder="Referencia" [(ngModel)]="form.referencia"><button (click)="createCash()">Registrar</button></div></div>
+      <div class="panel table-wrap"><table><thead><tr><th>Fecha</th><th>Farmacia</th><th>Tipo</th><th>Concepto</th><th>Monto</th><th>Usuario</th></tr></thead><tbody><tr *ngFor="let r of rows"><td>{{r.FECHA | date:'short'}}</td><td>{{r.FARMACIA}}</td><td>{{r.TIPO}}</td><td>{{r.CONCEPTO}}</td><td>{{money(r.MONTO)}}</td><td>{{r.USUARIO}}</td></tr></tbody></table></div>
+    </section>
+
+    <section *ngIf="section==='empleados'">
+      <div class="panel form-panel"><h2>Nuevo empleado</h2><div class="grid-form"><select [(ngModel)]="form.FARMACIA_ID"><option [ngValue]="undefined">Farmacia</option><option *ngFor="let f of pharmacies" [ngValue]="f.ID">{{f.NOMBRE}}</option></select><input placeholder="Código" [(ngModel)]="form.CODIGO"><input placeholder="Nombre" [(ngModel)]="form.NOMBRE"><input placeholder="Puesto" [(ngModel)]="form.PUESTO"><input type="number" placeholder="Salario base" [(ngModel)]="form.SALARIO_BASE"><button (click)="saveCrud('empleados')">Guardar</button></div></div>
+      <div class="panel table-wrap"><table><thead><tr><th>Código</th><th>Nombre</th><th>Puesto</th><th>Salario</th></tr></thead><tbody><tr *ngFor="let r of rows"><td>{{r.CODIGO}}</td><td>{{r.NOMBRE}}</td><td>{{r.PUESTO}}</td><td>{{money(r.SALARIO_BASE)}}</td></tr></tbody></table></div>
+    </section>
+
+    <section *ngIf="section==='planillas'">
+      <div class="panel form-panel"><h2>Registrar planilla</h2><div class="grid-form"><select [(ngModel)]="form.empleadoId"><option [ngValue]="undefined">Empleado</option><option *ngFor="let e of employees" [ngValue]="e.ID">{{e.CODIGO}} - {{e.NOMBRE}}</option></select><input placeholder="Periodo (2026-10)" [(ngModel)]="form.periodo"><input type="number" placeholder="Salario base" [(ngModel)]="form.salarioBase"><input type="number" placeholder="Bonificación" [(ngModel)]="form.bonificacion"><input type="number" placeholder="Descuentos" [(ngModel)]="form.descuentos"><button (click)="createPayroll()">Calcular y guardar</button></div></div>
+      <div class="panel table-wrap"><table><thead><tr><th>Empleado</th><th>Periodo</th><th>Base</th><th>Bonificación</th><th>Descuentos</th><th>Total</th><th>Estado</th></tr></thead><tbody><tr *ngFor="let r of rows"><td>{{r.EMPLEADO}}</td><td>{{r.PERIODO}}</td><td>{{money(r.SALARIO_BASE)}}</td><td>{{money(r.BONIFICACION)}}</td><td>{{money(r.DESCUENTOS)}}</td><td><b>{{money(r.TOTAL)}}</b></td><td>{{r.ESTADO}}</td></tr></tbody></table></div>
+    </section>
+
+    <section *ngIf="section==='clientes'">
+      <div class="panel form-panel"><h2>Nuevo cliente</h2><div class="grid-form"><input placeholder="NIT" [(ngModel)]="form.NIT"><input placeholder="Nombre" [(ngModel)]="form.NOMBRE"><input placeholder="Teléfono" [(ngModel)]="form.TELEFONO"><input placeholder="Correo" [(ngModel)]="form.EMAIL"><input placeholder="Dirección" [(ngModel)]="form.DIRECCION"><button (click)="saveCrud('clientes')">Guardar</button></div></div>
+      <div class="panel table-wrap"><table><thead><tr><th>NIT</th><th>Nombre</th><th>Teléfono</th><th>Correo</th><th>Dirección</th></tr></thead><tbody><tr *ngFor="let r of rows"><td>{{r.NIT}}</td><td>{{r.NOMBRE}}</td><td>{{r.TELEFONO}}</td><td>{{r.EMAIL}}</td><td>{{r.DIRECCION}}</td></tr></tbody></table></div>
+    </section>
+
+    <section *ngIf="section==='pedidos'">
+      <div class="panel form-panel"><h2>Nuevo pedido</h2><div class="grid-form"><select [(ngModel)]="form.clienteId"><option [ngValue]="undefined">Cliente</option><option *ngFor="let c of clients" [ngValue]="c.ID">{{c.NOMBRE}}</option></select><select [(ngModel)]="form.farmaciaId"><option [ngValue]="undefined">Farmacia</option><option *ngFor="let f of pharmacies" [ngValue]="f.ID">{{f.NOMBRE}}</option></select><input placeholder="Dirección de entrega" [(ngModel)]="form.direccionEntrega"></div><div class="line-items" *ngFor="let it of orderItems"><select [(ngModel)]="it.medicamentoId"><option [ngValue]="null">Medicamento</option><option *ngFor="let m of medicines" [ngValue]="m.ID">{{m.NOMBRE}} - {{money(m.PRECIO)}}</option></select><input type="number" min="1" [(ngModel)]="it.cantidad"></div><div class="actions"><button class="secondary" (click)="addOrderItem()">+ Producto</button><button (click)="createOrder()">Crear pedido</button></div></div>
+      <div class="panel table-wrap"><table><thead><tr><th>ID</th><th>Cliente</th><th>Farmacia</th><th>Total</th><th>Estado</th><th>Entrega</th><th></th></tr></thead><tbody><tr *ngFor="let r of rows"><td>#{{r.ID}}</td><td>{{r.CLIENTE}}</td><td>{{r.FARMACIA}}</td><td>{{money(r.TOTAL)}}</td><td>{{r.ESTADO}}</td><td>{{r.ENTREGA_ESTADO || '-'}}</td><td><button class="secondary" (click)="orderStatus(r.ID,'PREPARANDO')">Preparar</button></td></tr></tbody></table></div>
+    </section>
+
+    <section *ngIf="section==='entregas'">
+      <div class="panel form-panel"><h2>Asignar entrega</h2><div class="grid-form"><select [(ngModel)]="form.pedidoId"><option [ngValue]="undefined">Pedido</option><option *ngFor="let p of orders" [ngValue]="p.ID">#{{p.ID}} - {{p.CLIENTE}}</option></select><input placeholder="Repartidor" [(ngModel)]="form.repartidor"><input placeholder="Teléfono" [(ngModel)]="form.telefonoRepartidor"><button (click)="createDelivery()">Asignar</button></div></div>
+      <div class="panel table-wrap"><table><thead><tr><th>Pedido</th><th>Cliente</th><th>Repartidor</th><th>Estado</th><th>Dirección</th><th></th></tr></thead><tbody><tr *ngFor="let r of rows"><td>#{{r.PEDIDO_ID}}</td><td>{{r.CLIENTE}}</td><td>{{r.REPARTIDOR}}</td><td>{{r.ESTADO}}</td><td>{{r.DIRECCION_ENTREGA}}</td><td><button class="secondary" (click)="deliveryStatus(r.ID,'EN_RUTA')">En ruta</button> <button (click)="deliveryStatus(r.ID,'ENTREGADO')">Entregado</button></td></tr></tbody></table></div>
+    </section>
+  </main>
+</div>

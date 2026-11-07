@@ -1,0 +1,3 @@
+-- Los datos iniciales también son administrados por schema.service.js:
+-- roles ADMINISTRADOR/OPERADOR, Farmacia Central, usuario administrador y
+-- dos medicamentos de demostración con inventario inicial.

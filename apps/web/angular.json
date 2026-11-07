@@ -7,7 +7,6 @@
       "projectType": "application",
       "root": "",
       "sourceRoot": "src",
-      "prefix": "app",
       "architect": {
         "build": {
           "builder": "@angular-devkit/build-angular:application",
@@ -21,21 +20,14 @@
             "styles": ["src/styles.css"]
           },
           "configurations": {
-            "production": {
-              "outputHashing": "all"
-            },
-            "development": {
-              "optimization": false,
-              "sourceMap": true
-            }
+            "production": { "outputHashing": "all", "budgets": [{"type":"initial","maximumWarning":"2mb","maximumError":"4mb"}] }
           },
           "defaultConfiguration": "production"
         },
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
-            "production": { "buildTarget": "farmacias-web:build:production" },
-            "development": { "buildTarget": "farmacias-web:build:development" }
+            "development": { "buildTarget": "farmacias-web:build" }
           },
           "defaultConfiguration": "development"
         }
